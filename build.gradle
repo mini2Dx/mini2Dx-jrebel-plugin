@@ -1,0 +1,122 @@
+import org.apache.tools.ant.taskdefs.condition.Os
+
+buildscript {
+	repositories {
+		mavenLocal()
+		mavenCentral()
+		jcenter()
+	}
+	dependencies {
+		classpath 'io.codearte.gradle.nexus:gradle-nexus-staging-plugin:0.5.3'
+	}
+}
+
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+apply plugin: "java"
+apply plugin: 'maven'
+apply plugin: 'signing'
+
+if(project.hasProperty('ossrhUser') && project.hasProperty("release")) {
+	apply plugin: "io.codearte.nexus-staging"
+
+	nexusStaging {
+		username = ossrhUser
+		password = ossrhPassword
+	}
+}
+
+group = 'org.mini2Dx'
+version = '1.0.0-SNAPSHOT'
+description = 'JRebel plugin for mini2Dx'
+
+repositories {
+	mavenLocal()
+	mavenCentral()
+    maven { url "http://repos.zeroturnaround.com/nexus/content/repositories/zt-public-releases" }
+}
+
+sourceCompatibility = 1.7
+targetCompatibility = 1.7
+
+task javadocJar(type: Jar) {
+	classifier = 'javadoc'
+	from javadoc
+}
+
+task sourcesJar(type: Jar) {
+	classifier = 'sources'
+	from sourceSets.main.allSource
+}
+
+artifacts {
+	archives javadocJar, sourcesJar
+}
+
+dependencies {
+    compileOnly "org.zeroturnaround:jr-sdk:4.6.2"
+    compileOnly "org.zeroturnaround:jr-utils:4.6.2"
+    compileOnly "org.zeroturnaround:jr-javassist:3.14.0-GA"
+
+	testCompile 'junit:junit:4.11'
+	testCompile "org.jmock:jmock-junit4:2.5.1"
+	testCompile "org.jmock:jmock-legacy:2.5.1"
+}
+
+jar {
+    manifest {
+        attributes("JavaRebel-Plugin": "org.mini2Dx.jrebel.Mini2DxJRebelPlugin")
+    }
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '3.5'
+}
+
+// Maven Central publication
+if(project.hasProperty('ossrhUser')) {
+	signing {
+		sign configurations.archives
+	}
+	
+	uploadArchives {
+		repositories {
+			mavenDeployer {
+				// POM signature
+				beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+				// Target repository
+				repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+					authentication(userName: ossrhUser, password: ossrhPassword)
+				}
+				pom.project {
+					name project.name
+					description project.description
+					packaging 'jar'
+					url 'https://github.com/mini2Dx/mini2Dx-jrebel-plugin'
+
+					scm {
+						connection 'scm:git:https://github.com/mini2Dx/mini2Dx-jrebel-plugin.git'
+						developerConnection 'scm:git:git@github.com:mini2Dx/mini2Dx-jrebel-plugin.git'
+						url 'https://github.com/mini2Dx/mini2Dx-jrebel-plugin.git'
+					}
+
+					licenses {
+						license {
+							name 'The MIT License (MIT)'
+							url 'https://opensource.org/licenses/MIT'
+							distribution 'repo'
+						}
+					}
+
+					developers {
+						developer {
+							id = 'tomcashman'
+							name = 'Thomas Cashman'
+							email = 'thomascashman404@gmail.com'
+						}
+					}
+				}
+			}
+		}
+	}
+}
